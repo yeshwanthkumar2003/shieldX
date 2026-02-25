@@ -1,0 +1,17 @@
+# Environment variables
+.env
+
+# Database
+*.db
+instance/
+
+# Firebase credentials
+firebase-admin.json
+creds.json
+
+# Uploads folder
+uploads/
+
+# Python cache
+__pycache__/
+*.pyc

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ShieldX Trash</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header class="topbar">
+    {% include '_logo.html' %}
+    <nav>
+        <span class="top-welcome">Welcome, {{ current_user.username }}</span>
+        {% if current_user.username == 'admin' %}
+            <a href="/dashboard">Security</a>
+        {% endif %}
+        <a href="/logout">Logout</a>
+    </nav>
+</header>
+
+<div class="app">
+    <aside class="sidebar">
+        <button class="new-btn">＋ New</button>
+        <ul>
+            <li class="{{ 'active' if request.path == '/drive' else '' }}"><a href="/drive">📁 My Drive</a></li>
+            <li class="{{ 'active' if request.path == '/recent' else '' }}"><a href="/recent">🕒 Recent</a></li>
+            {% if current_user.username == 'admin' %}
+            <li class="{{ 'active' if request.path == '/dashboard' else '' }}"><a href="/dashboard">🛡️ Security</a></li>
+            {% endif %}
+            <li class="{{ 'active' if request.path == '/trash' else '' }}"><a href="/trash">🗑️ Trash</a></li>
+        </ul>
+    </aside>
+
+    <main class="main">
+        <div class="welcome-banner">Trash</div>
+
+        <section class="grid">
+            {% for t in items %}
+            <div class="tile">
+                <div class="icon">📄</div>
+                <div class="name" title="{{ t.filename }}">{{ t.filename }}</div>
+                <div class="actions">
+                    <form method="post" action="/trash/restore/{{ t.id }}" style="display:inline">
+                        <button type="submit" class="action download">Restore</button>
+                    </form>
+                    <form method="post" action="/trash/delete/{{ t.id }}" style="display:inline" onsubmit="return confirm('Permanently delete?');">
+                        <button type="submit" class="action delete">Delete</button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <p class="empty">Trash is empty</p>
+            {% endfor %}
+        </section>
+    </main>
+</div>
+
+</body>
+</html>

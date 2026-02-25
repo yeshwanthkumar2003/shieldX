@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ShieldX Login</title>
+
+  <!-- Main CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <!-- Firebase Auth -->
+  <script type="module" src="{{ url_for('static', filename='auth.js') }}"></script>
+</head>
+
+<body>
+
+<div class="login-container">
+
+  <!-- Lightning Effect -->
+  <div class="lightning-flash"></div>
+
+  <!-- Login Box -->
+  <div class="login-box">
+
+    <!-- Logo -->
+    <div class="logo-box">
+      <img src="{{ url_for('static', filename='image.png') }}" class="login-logo">
+    </div>
+
+    <h2>Login to Your Account</h2>
+    <p class="subtitle">Secure Login Portal</p>
+
+    <!-- Messages -->
+    <div id="error" class="error-message"></div>
+    <div id="success" class="success-message"></div>
+
+    <!-- Login Form -->
+    <form onsubmit="loginUser(event)">
+
+      <!-- Username -->
+      <div class="input-group">
+        <label>Username / Email</label>
+        <input type="text" id="username" required>
+      </div>
+
+      <!-- Password -->
+      <div class="input-group">
+        <label>Password</label>
+
+        <div class="password-container">
+          <input type="password" id="password" required>
+          <span class="password-toggle" onclick="togglePassword()">👁️</span>
+        </div>
+      </div>
+
+      <!-- Options -->
+      <div class="login-options">
+
+        <label class="remember-me">
+          <input type="checkbox" id="remember">
+          Remember me
+        </label>
+
+        <a href="/forgot" class="link">Forgot password?</a>
+
+      </div>
+
+      <!-- Button -->
+      <button type="submit" id="loginBtn">
+        Login
+      </button>
+
+    </form>
+
+    <!-- Social Login -->
+    <div class="social-login">
+
+      <p class="divider">Or continue with</p>
+
+      <button onclick="loginWithGoogle()" class="social-btn google">
+        Continue with Google
+      </button>
+
+    </div>
+
+    <!-- Signup -->
+    <p class="signup-link">
+      Don’t have an account?
+      <a href="/signup">Sign up</a>
+    </p>
+
+  </div>
+
+</div>
+
+</body>
+</html>

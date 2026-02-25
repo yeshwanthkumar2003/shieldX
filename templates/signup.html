@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ShieldX Signup</title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <!-- Auth -->
+  <script type="module" src="{{ url_for('static', filename='auth.js') }}"></script>
+</head>
+
+<body>
+
+<div class="login-container">
+
+  <!-- Effects -->
+  <div class="lightning-flash"></div>
+
+  <!-- Signup Box -->
+  <div class="login-box signup-box">
+
+    <img src="{{ url_for('static', filename='image.png') }}" class="login-logo">
+
+    <h2>Create Account</h2>
+    <p class="subtitle">Get started in seconds</p>
+
+    <!-- Errors -->
+    <div id="error" class="error-message"></div>
+    <div id="success" class="success-message"></div>
+
+    <!-- Form -->
+    <form onsubmit="signupUser(event)">
+
+      <!-- Name -->
+      <div class="input-group">
+        <label>Full Name</label>
+        <input type="text" id="name" required>
+      </div>
+
+      <!-- Email -->
+      <div class="input-group">
+        <label>Email</label>
+        <input type="email" id="email" required>
+      </div>
+
+      <!-- Password -->
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="password" required oninput="checkStrength(this.value)">
+      </div>
+
+      <!-- Strength -->
+      <div class="password-strength">
+        <div class="strength-bar">
+          <div id="strengthFill" class="strength-fill"></div>
+        </div>
+        <span id="strengthText" class="strength-text"></span>
+      </div>
+
+      <!-- Confirm -->
+      <div class="input-group">
+        <label>Confirm Password</label>
+        <input type="password" id="confirm" required>
+      </div>
+
+      <!-- Terms -->
+      <div class="terms-group">
+        <label class="terms-label">
+          <input type="checkbox" id="terms">
+          I agree to Terms & Privacy Policy
+        </label>
+      </div>
+
+      <!-- Submit -->
+      <button type="submit" id="signupBtn">
+        Create Account
+      </button>
+
+    </form>
+
+    <!-- Login Link -->
+    <p class="signup-link">
+      Already have an account?
+      <a href="/">Login</a>
+    </p>
+
+  </div>
+
+</div>
+
+</body>
+</html>

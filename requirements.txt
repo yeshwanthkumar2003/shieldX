@@ -1,0 +1,7 @@
+Flask
+Flask-Login
+Flask-SQLAlchemy
+google-cloud-storage
+google-auth
+SQLAlchemy
+Werkzeug

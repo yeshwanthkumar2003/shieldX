@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ShieldX Security Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+<body class="dashboard-page">
+
+
+<header class="topbar">
+    {% include '_logo.html' %}
+    <nav>
+        <span class="top-welcome">Welcome, {{ current_user.username }}</span>
+        <a href="/drive">My Drive</a>
+        {% if current_user.username == 'admin' %}
+            <a href="/dashboard">Security</a>
+        {% endif %}
+        <a href="/logout">Logout</a>
+    </nav>
+</header>
+
+<div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <button class="new-btn">＋ New</button>
+
+        <ul>
+            <li class="{{ 'active' if request.path == '/drive' else '' }}">
+                <a href="/drive">📁 My Drive</a>
+            </li>
+            <li class="{{ 'active' if request.path == '/recent' else '' }}">
+                <a href="/recent">🕒 Recent</a>
+            </li>
+            {% if current_user.username == 'admin' %}
+            <li class="{{ 'active' if request.path == '/dashboard' else '' }}">
+                <a href="/dashboard">🛡️ Security</a>
+            </li>
+            {% endif %}
+            <li class="{{ 'active' if request.path == '/trash' else '' }}">
+                <a href="/trash">🗑️ Trash</a>
+            </li>
+        </ul>
+    </aside>
+
+    <main class="security-main">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div class="welcome-banner">Welcome, {{ current_user.username }}</div>
+
+        <form method="get" class="timeframe-form" style="margin-left:auto;">
+            <label for="days">Timeframe:</label>
+            <select id="days" name="days" onchange="this.form.submit()">
+                <option value="7" {% if selected_days == '7' %}selected{% endif %}>Last 7 days</option>
+                <option value="30" {% if selected_days == '30' %}selected{% endif %}>Last 30 days</option>
+                <option value="90" {% if selected_days == '90' %}selected{% endif %}>Last 90 days</option>
+                <option value="365" {% if selected_days == '365' %}selected{% endif %}>Last 1 year</option>
+                <option value="all" {% if selected_days == 'all' %}selected{% endif %}>All time</option>
+            </select>
+        </form>
+    </div>
+
+    <!-- KPI Tiles -->
+    <section class="kpi-grid">
+        <div class="kpi critical">
+            <h3>Critical Alerts</h3>
+            <p>{{ counts.CRITICAL }}</p>
+        </div>
+
+        <div class="kpi high">
+            <h3>High Severity</h3>
+            <p>{{ counts.HIGH }}</p>
+        </div>
+
+        <div class="kpi medium">
+            <h3>Medium Severity</h3>
+            <p>{{ counts.MEDIUM }}</p>
+        </div>
+
+        <div class="kpi low">
+            <h3>Low Severity</h3>
+            <p>{{ counts.LOW }}</p>
+        </div>
+    </section>
+    <section class="chart-card">
+    <h2>Firewall Activity</h2>
+    <canvas id="securityChart"></canvas>
+    </section>
+
+
+    <!-- Recent Events -->
+    <section class="events">
+        <h2>Recent Firewall Events</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Event</th>
+                    <th>User</th>
+                    <th>IP</th>
+                    <th>Severity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in events %}
+                <tr>
+                    <td>{{ e.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>{{ e.event_type }}</td>
+                    <td>{{ e.user }}</td>
+                    <td>{{ e.ip }}</td>
+                    <td>
+                        <span class="sev {{ e.severity|lower }}">
+                            {{ e.severity }}
+                        </span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5">No security events yet</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    
+</main>
+</div>
+
+</body>
+<script>
+const ctx = document.getElementById('securityChart');
+
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: {{ chart_dates | safe }},
+        datasets: [{
+            label: 'Security Events',
+            data: {{ chart_values | safe }},
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.15)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: { beginAtZero: true }
+        }
+    }
+});
+</script>
+
+</html>
