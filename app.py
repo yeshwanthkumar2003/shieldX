@@ -415,34 +415,55 @@ def drive():
 
     if request.method == "POST":
 
+        if "file" not in request.files:
+            return redirect("/drive")
+
         file = request.files["file"]
 
+        if file.filename == "":
+            return redirect("/drive")
+
+        filename = file.filename
+
+        # 🔍 SECURITY SCAN (Basic)
         risk = "LOW"
+        severity = "LOW"
 
-        if file.filename.lower().endswith((".exe", ".js")):
+        dangerous_ext = (".exe", ".js", ".bat", ".cmd", ".scr", ".ps1")
+
+        if filename.lower().endswith(dangerous_ext):
             risk = "HIGH"
+            severity = "HIGH"
 
-
-        gcs_path = f"user_{current_user.id}/{file.filename}"
+        # 📦 Upload to GCS
+        gcs_path = f"user_{current_user.id}/{filename}"
 
         blob = bucket.blob(gcs_path)
         blob.upload_from_file(file.stream)
 
-
+        # 💾 Save file record
         db.session.add(File(
-            filename=file.filename,
+            filename=filename,
             owner_id=current_user.id,
             risk=risk
         ))
 
+        # 🛡️ LOG SECURITY EVENT
+        db.session.add(SecurityEvent(
+            event_type=f"File uploaded: {filename}",
+            user=current_user.username,
+            ip=request.remote_addr,
+            severity=severity
+        ))
+
         db.session.commit()
 
+        return redirect("/drive")
 
+    # GET request → show files
     files = File.query.filter_by(owner_id=current_user.id).all()
 
     return render_template("drive.html", files=files)
-
-
 # ================= DASHBOARD (FIXED) ================= #
 
 @app.route("/dashboard")

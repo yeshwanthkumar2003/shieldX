@@ -72,32 +72,31 @@
     <div class="upload-container">
 
         <form method="post"
-              enctype="multipart/form-data"
-              id="uploadForm">
+      action="/drive"
+      enctype="multipart/form-data"
+      id="uploadForm">
 
-            <input type="file"
-                   name="file"
-                   id="fileInput"
-                   hidden
-                   multiple
-                   required>
+    <input type="file"
+           name="file"
+           id="fileInput"
+           hidden
+           required>
 
-            <label for="fileInput" class="drop-zone">
+    <label for="fileInput" class="drop-zone">
 
-                <div class="folder-icon">📁</div>
+        <div class="folder-icon">📁</div>
 
-                <h3>Drag & Drop Files Here</h3>
+        <h3>Drag & Drop Files Here</h3>
 
-                <p>or Click to Browse</p>
+        <p>or Click to Browse</p>
 
-            </label>
+    </label>
 
+    <button type="submit" class="normal-upload-btn">
+        Upload
+    </button>
 
-            <button type="submit" class="normal-upload-btn">
-                Upload
-            </button>
-
-        </form>
+</form>
 
     </div>
 

@@ -132,13 +132,16 @@
 <script>
 const ctx = document.getElementById('securityChart');
 
+const labels = {{ chart_dates | tojson }};
+const values = {{ chart_values | tojson }};
+
 new Chart(ctx, {
     type: 'line',
     data: {
-        labels: {{ chart_dates | safe }},
+        labels: labels,
         datasets: [{
             label: 'Security Events',
-            data: {{ chart_values | safe }},
+            data: values,
             borderColor: '#2563eb',
             backgroundColor: 'rgba(37, 99, 235, 0.15)',
             tension: 0.4,
