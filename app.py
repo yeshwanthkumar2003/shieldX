@@ -115,6 +115,9 @@ class File(db.Model):
     risk = db.Column(db.String(20), default="LOW")
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    trashed = db.Column(db.Boolean, default=False)
+    trashed_at = db.Column(db.DateTime, nullable=True)
+
 
 class SecurityEvent(db.Model):
 
@@ -125,6 +128,17 @@ class SecurityEvent(db.Model):
 
     ip = db.Column(db.String(50))
     severity = db.Column(db.String(20))
+
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class Feedback(db.Model):
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    user = db.Column(db.String(80))
+    rating = db.Column(db.Integer)
+    message = db.Column(db.Text)
 
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -439,7 +453,12 @@ def drive():
         gcs_path = f"user_{current_user.id}/{filename}"
 
         blob = bucket.blob(gcs_path)
-        blob.upload_from_file(file.stream)
+
+        file.stream.seek(0)
+        file_bytes = file.stream.read()
+        content_type = file.content_type or "application/octet-stream"
+        blob.upload_from_string(file_bytes, content_type=content_type)
+        print(f"✅ Uploaded {filename} to GCS at {gcs_path}")
 
         # 💾 Save file record
         db.session.add(File(
@@ -460,10 +479,14 @@ def drive():
 
         return redirect("/drive")
 
-    # GET request → show files
-    files = File.query.filter_by(owner_id=current_user.id).all()
+    # GET request → show files (exclude trashed)
+    files = File.query.filter_by(owner_id=current_user.id, trashed=False).order_by(File.uploaded_at.desc()).all()
 
-    return render_template("drive.html", files=files)
+    activity = SecurityEvent.query.filter_by(
+        user=current_user.username
+    ).order_by(SecurityEvent.timestamp.desc()).limit(10).all()
+
+    return render_template("drive.html", files=files, activity=activity)
 # ================= DASHBOARD (FIXED) ================= #
 
 @app.route("/dashboard")
@@ -475,23 +498,32 @@ def dashboard():
         return redirect("/drive")
 
 
+    selected_days = request.args.get("days", "30")
+
     base = SecurityEvent.query
+
+    if selected_days != "all":
+        try:
+            cutoff = datetime.utcnow() - timedelta(days=int(selected_days))
+            base = base.filter(SecurityEvent.timestamp >= cutoff)
+        except ValueError:
+            pass
 
 
     events = base.order_by(
         SecurityEvent.timestamp.desc()
-    ).limit(30).all()
+    ).limit(50).all()
 
 
     counts = {
-        "CRITICAL": base.filter_by(severity="CRITICAL").count(),
-        "HIGH": base.filter_by(severity="HIGH").count(),
-        "MEDIUM": base.filter_by(severity="MEDIUM").count(),
-        "LOW": base.filter_by(severity="LOW").count(),
+        "CRITICAL": base.filter(SecurityEvent.severity == "CRITICAL").count(),
+        "HIGH": base.filter(SecurityEvent.severity == "HIGH").count(),
+        "MEDIUM": base.filter(SecurityEvent.severity == "MEDIUM").count(),
+        "LOW": base.filter(SecurityEvent.severity == "LOW").count(),
     }
 
 
-    chart = db.session.query(
+    chart = base.with_entities(
         func.date(SecurityEvent.timestamp),
         func.count(SecurityEvent.id)
     ).group_by(func.date(SecurityEvent.timestamp)).all()
@@ -506,8 +538,178 @@ def dashboard():
         events=events,
         counts=counts,
         chart_dates=dates,
-        chart_values=values
+        chart_values=values,
+        selected_days=selected_days
     )
+
+
+# ================= FEEDBACK ================= #
+
+@app.route("/feedback", methods=["POST"])
+@login_required
+def submit_feedback():
+
+    data = request.get_json()
+
+    rating = data.get("rating", 0)
+    message = data.get("message", "").strip()
+
+    if not 1 <= int(rating) <= 5:
+        return jsonify({"success": False, "message": "Invalid rating"}), 400
+
+    fb = Feedback(
+        user=current_user.username,
+        rating=int(rating),
+        message=message
+    )
+
+    db.session.add(fb)
+    db.session.commit()
+
+    return jsonify({"success": True})
+
+
+# ================= FEEDBACK LIST ================= #
+
+@app.route("/feedbacks")
+@login_required
+def feedbacks_page():
+
+    all_feedback = Feedback.query.order_by(
+        Feedback.timestamp.desc()
+    ).all()
+
+    # Calculate average rating
+    ratings = [f.rating for f in all_feedback]
+    avg_rating = sum(ratings) / len(ratings) if ratings else 0
+
+    return render_template(
+        "feedbacks.html",
+        feedbacks=all_feedback,
+        total=len(all_feedback),
+        avg_rating=round(avg_rating, 1)
+    )
+
+
+# ================= RECENT ================= #
+
+@app.route("/recent")
+@login_required
+def recent():
+
+    files = File.query.filter_by(
+        owner_id=current_user.id,
+        trashed=False
+    ).order_by(File.uploaded_at.desc()).limit(20).all()
+
+    return render_template("recent.html", files=files)
+
+
+# ================= FILE DOWNLOAD ================= #
+
+@app.route("/file/download/<int:file_id>")
+@login_required
+def download_file(file_id):
+
+    from flask import send_file
+    import io
+
+    f = db.session.get(File, file_id)
+
+    if not f or f.owner_id != current_user.id:
+        return "Not found", 404
+
+    gcs_path = f"user_{current_user.id}/{f.filename}"
+    blob = bucket.blob(gcs_path)
+
+    try:
+        data = blob.download_as_bytes()
+    except Exception as e:
+        print("GCS download error:", e)
+        return "File not found in storage", 404
+
+    return send_file(
+        io.BytesIO(data),
+        download_name=f.filename,
+        as_attachment=True
+    )
+
+
+# ================= MOVE TO TRASH ================= #
+
+@app.route("/file/trash/<int:file_id>", methods=["POST"])
+@login_required
+def trash_file(file_id):
+
+    f = db.session.get(File, file_id)
+
+    if not f or f.owner_id != current_user.id:
+        return "Not found", 404
+
+    f.trashed = True
+    f.trashed_at = datetime.utcnow()
+
+    db.session.commit()
+
+    return redirect("/drive")
+
+
+# ================= TRASH PAGE ================= #
+
+@app.route("/trash")
+@login_required
+def trash_page():
+
+    items = File.query.filter_by(
+        owner_id=current_user.id,
+        trashed=True
+    ).order_by(File.trashed_at.desc()).all()
+
+    return render_template("trash.html", items=items)
+
+
+# ================= RESTORE FROM TRASH ================= #
+
+@app.route("/trash/restore/<int:file_id>", methods=["POST"])
+@login_required
+def restore_file(file_id):
+
+    f = db.session.get(File, file_id)
+
+    if not f or f.owner_id != current_user.id:
+        return "Not found", 404
+
+    f.trashed = False
+    f.trashed_at = None
+
+    db.session.commit()
+
+    return redirect("/trash")
+
+
+# ================= PERMANENT DELETE ================= #
+
+@app.route("/trash/delete/<int:file_id>", methods=["POST"])
+@login_required
+def delete_file(file_id):
+
+    f = db.session.get(File, file_id)
+
+    if not f or f.owner_id != current_user.id:
+        return "Not found", 404
+
+    # Delete from GCS
+    try:
+        gcs_path = f"user_{current_user.id}/{f.filename}"
+        blob = bucket.blob(gcs_path)
+        blob.delete()
+    except Exception as e:
+        print("GCS delete error:", e)
+
+    db.session.delete(f)
+    db.session.commit()
+
+    return redirect("/trash")
 
 
 # ================= LOGOUT ================= #
@@ -526,6 +728,18 @@ def logout():
 with app.app_context():
 
     db.create_all()
+
+    # Migrate: add columns if missing (SQLite doesn't auto-add)
+    with db.engine.connect() as _conn:
+        for _tbl, _col, _def in [
+            ("file", "trashed", "BOOLEAN DEFAULT 0"),
+            ("file", "trashed_at", "DATETIME"),
+        ]:
+            try:
+                _conn.execute(db.text(f"ALTER TABLE {_tbl} ADD COLUMN {_col} {_def}"))
+                _conn.commit()
+            except Exception:
+                pass
 
 
     if not User.query.filter_by(username="admin").first():

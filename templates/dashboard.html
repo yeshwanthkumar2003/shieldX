@@ -33,6 +33,9 @@
             <li class="{{ 'active' if request.path == '/recent' else '' }}">
                 <a href="/recent">🕒 Recent</a>
             </li>
+            <li class="{{ 'active' if request.path == '/feedbacks' else '' }}">
+                <a href="/feedbacks">💬 Feedbacks</a>
+            </li>
             {% if current_user.username == 'admin' %}
             <li class="{{ 'active' if request.path == '/dashboard' else '' }}">
                 <a href="/dashboard">🛡️ Security</a>

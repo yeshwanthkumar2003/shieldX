@@ -23,7 +23,7 @@
 
     <!-- Sidebar -->
     <aside class="sidebar">
-        <button class="new-btn">＋ New</button>
+        <button class="new-btn" onclick="document.getElementById('fileInput').click()">＋ New</button>
 
         <ul>
             <li class="{{ 'active' if request.path == '/drive' else '' }}">
@@ -31,6 +31,9 @@
             </li>
             <li class="{{ 'active' if request.path == '/recent' else '' }}">
                 <a href="/recent">🕒 Recent</a>
+            </li>
+            <li class="{{ 'active' if request.path == '/feedbacks' else '' }}">
+                <a href="/feedbacks">💬 Feedbacks</a>
             </li>
             {% if current_user.username == 'admin' %}
             <li class="{{ 'active' if request.path == '/dashboard' else '' }}">
@@ -86,27 +89,137 @@
 
         <div class="folder-icon">📁</div>
 
-        <h3>Drag & Drop Files Here</h3>
+        <h3 id="dropLabel">Drag &amp; Drop Files Here</h3>
 
         <p>or Click to Browse</p>
 
     </label>
 
     <button type="submit" class="normal-upload-btn">
-        Upload
+        ⬆ Upload
     </button>
 
 </form>
 
     </div>
 
+
+    <!-- File List -->
+    {% if files %}
+    <div class="file-list-section">
+        <h2 class="file-list-title">My Files</h2>
+        <div class="grid">
+            {% for f in files %}
+            <div class="tile">
+                <div class="icon">
+                    {% set ext = f.filename.rsplit('.', 1)[-1].lower() %}
+                    {% if ext in ['jpg','jpeg','png','gif','webp','svg'] %}🖼️
+                    {% elif ext in ['pdf'] %}📕
+                    {% elif ext in ['zip','tar','gz','rar'] %}📦
+                    {% elif ext in ['mp4','mov','avi'] %}🎬
+                    {% elif ext in ['mp3','wav','flac'] %}🎵
+                    {% elif ext in ['doc','docx'] %}📝
+                    {% elif ext in ['xls','xlsx','csv'] %}📊
+                    {% elif ext in ['exe','bat','cmd','ps1','scr'] %}⚠️
+                    {% else %}📄{% endif %}
+                </div>
+                <div class="name" title="{{ f.filename }}">{{ f.filename }}</div>
+                <div style="font-size:11px;color:#94a3b8;margin:4px 0;">
+                    {{ f.uploaded_at.strftime('%b %d, %Y') }}
+                </div>
+                <span class="sev {{ f.risk|lower }}" style="font-size:11px;">{{ f.risk }}</span>
+                <div class="actions">
+                    <a href="/file/download/{{ f.id }}" class="action download">⬇ Download</a>
+                    <form method="post" action="/file/trash/{{ f.id }}" style="display:inline">
+                        <button type="submit" class="action delete">🗑️ Trash</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <p class="empty-state">No files yet — upload your first file above.</p>
+    {% endif %}
+
 </main>
 
+    <!-- Right Panel -->
+    <aside class="right-panel">
+
+        <!-- Recent Activity Card -->
+        <div class="rp-card">
+            <div class="rp-card-header">
+                <span class="rp-card-icon">⚡</span>
+                <h3>Recent Activity</h3>
+            </div>
+
+            <ul class="activity-list">
+                {% if activity %}
+                {% for ev in activity %}
+                <li class="activity-item">
+                    <span class="activity-icon">
+                        {% if 'uploaded' in ev.event_type|lower %}📤
+                        {% elif 'login' in ev.event_type|lower %}🔑
+                        {% elif 'delete' in ev.event_type|lower %}🗑️
+                        {% elif 'download' in ev.event_type|lower %}📥
+                        {% elif 'trash' in ev.event_type|lower %}🗑️
+                        {% elif 'restore' in ev.event_type|lower %}♻️
+                        {% elif 'blocked' in ev.event_type|lower %}🚫
+                        {% else %}📋{% endif %}
+                    </span>
+                    <div class="activity-body">
+                        <p class="activity-desc">{{ ev.event_type }}</p>
+                        <span class="activity-time" data-ts="{{ ev.timestamp.isoformat() }}">
+                            {{ ev.timestamp.strftime('%b %d, %H:%M') }}
+                        </span>
+                    </div>
+                </li>
+                {% endfor %}
+                {% else %}
+                <li class="activity-empty">No activity yet</li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <!-- Feedback Card -->
+        <div class="rp-card">
+            <div class="rp-card-header">
+                <span class="rp-card-icon">💬</span>
+                <h3>Feedback</h3>
+            </div>
+
+            <p class="rp-sub">How is your experience?</p>
+
+            <!-- Star Rating -->
+            <div class="star-row" id="starRow">
+                <span class="star" data-v="1">★</span>
+                <span class="star" data-v="2">★</span>
+                <span class="star" data-v="3">★</span>
+                <span class="star" data-v="4">★</span>
+                <span class="star" data-v="5">★</span>
+            </div>
+            <input type="hidden" id="starValue" value="0">
+
+            <textarea id="fbMsg" class="fb-textarea"
+                      placeholder="Share your feedback…" rows="4"></textarea>
+
+            <div style="text-align:right;margin-top:12px;">
+                <button class="fb-send-btn" id="fbSend">Send ➤</button>
+            </div>
+
+            <div id="fbToast" class="fb-toast" style="display:none;">
+                ✅ Thanks for your feedback!
+            </div>
+        </div>
+
+    </aside>
 
 </div>
 <script>
 const dropZone = document.querySelector(".drop-zone");
 const fileInput = document.getElementById("fileInput");
+const dropLabel = document.getElementById("dropLabel");
 
 dropZone.addEventListener("dragover", e => {
     e.preventDefault();
@@ -120,8 +233,64 @@ dropZone.addEventListener("dragleave", () => {
 dropZone.addEventListener("drop", e => {
     e.preventDefault();
     dropZone.classList.remove("active");
-
     fileInput.files = e.dataTransfer.files;
+    if (fileInput.files[0]) {
+        dropLabel.textContent = fileInput.files[0].name;
+    }
+});
+
+fileInput.addEventListener("change", () => {
+    if (fileInput.files[0]) {
+        dropLabel.textContent = fileInput.files[0].name;
+    }
+});
+
+// Star Rating
+const stars = document.querySelectorAll(".star");
+const starValue = document.getElementById("starValue");
+
+function highlight(n) {
+    stars.forEach(s => s.classList.toggle("active", +s.dataset.v <= n));
+}
+
+stars.forEach(s => {
+    s.addEventListener("mouseover", () => highlight(+s.dataset.v));
+    s.addEventListener("mouseleave", () => highlight(+starValue.value));
+    s.addEventListener("click", () => { starValue.value = s.dataset.v; highlight(+s.dataset.v); });
+});
+
+// Feedback Submit
+document.getElementById("fbSend").addEventListener("click", async () => {
+    const rating = +starValue.value;
+    const message = document.getElementById("fbMsg").value.trim();
+    if (!rating) { alert("Please select a star rating."); return; }
+
+    const res = await fetch("/feedback", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ rating, message })
+    });
+    const data = await res.json();
+    if (data.success) {
+        document.getElementById("fbMsg").value = "";
+        starValue.value = "0";
+        highlight(0);
+        const toast = document.getElementById("fbToast");
+        toast.style.display = "block";
+        setTimeout(() => toast.style.display = "none", 3000);
+    }
+});
+
+// Relative Timestamps
+function timeAgo(iso) {
+    const sec = Math.floor((Date.now() - new Date(iso + "Z")) / 1000);
+    if (sec < 60) return sec + "s ago";
+    if (sec < 3600) return Math.floor(sec / 60) + "m ago";
+    if (sec < 86400) return Math.floor(sec / 3600) + "h ago";
+    return Math.floor(sec / 86400) + "d ago";
+}
+document.querySelectorAll(".activity-time[data-ts]").forEach(el => {
+    el.textContent = timeAgo(el.dataset.ts);
 });
 </script>
 

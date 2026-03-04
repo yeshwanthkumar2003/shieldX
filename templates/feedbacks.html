@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ShieldX – User Feedback</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="drive-page">
+
+<header class="topbar">
+    {% include '_logo.html' %}
+    <nav>
+        <span class="top-welcome">Welcome, {{ current_user.username }}</span>
+        {% if current_user.username == 'admin' %}
+            <a href="/dashboard">Security</a>
+        {% endif %}
+        <a href="/logout">Logout</a>
+    </nav>
+</header>
+
+<div class="app">
+
+    <aside class="sidebar">
+        <button class="new-btn" onclick="window.location.href='/drive'">+ New</button>
+        <ul>
+            <li class="{{ 'active' if request.path == '/drive' else '' }}">
+                <a href="/drive">📁 My Drive</a>
+            </li>
+            <li class="{{ 'active' if request.path == '/recent' else '' }}">
+                <a href="/recent">🕒 Recent</a>
+            </li>
+            <li class="{{ 'active' if request.path == '/feedbacks' else '' }}">
+                <a href="/feedbacks">💬 Feedbacks</a>
+            </li>
+            {% if current_user.username == 'admin' %}
+            <li class="{{ 'active' if request.path == '/dashboard' else '' }}">
+                <a href="/dashboard">🛡️ Security</a>
+            </li>
+            {% endif %}
+            <li class="{{ 'active' if request.path == '/trash' else '' }}">
+                <a href="/trash">🗑️ Trash</a>
+            </li>
+        </ul>
+    </aside>
+
+    <main class="main simple-drive">
+
+        <div class="drive-header">
+            <h1>💬 User Feedback</h1>
+            <p>See what users are saying about ShieldX</p>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="feedback-stats">
+            <div class="fb-stat-card">
+                <h3>Total Feedback</h3>
+                <p class="fb-stat-num">{{ total }}</p>
+                <span class="fb-stat-label">Submissions</span>
+            </div>
+            <div class="fb-stat-card">
+                <h3>Average Rating</h3>
+                <p class="fb-stat-num">{{ avg_rating }} ★</p>
+                <span class="fb-stat-label">Out of 5.0</span>
+            </div>
+        </div>
+
+        <!-- Feedback List -->
+        {% if feedbacks %}
+        <div class="feedback-list-section">
+            {% for fb in feedbacks %}
+            <div class="feedback-card">
+                <div class="fb-card-header">
+                    <div class="fb-user-info">
+                        <span class="fb-user-avatar">{{ fb.user[0].upper() }}</span>
+                        <div>
+                            <p class="fb-user-name">{{ fb.user }}</p>
+                            <p class="fb-timestamp">{{ fb.timestamp.strftime('%b %d, %Y at %H:%M') }}</p>
+                        </div>
+                    </div>
+                    <div class="fb-rating-display">
+                        {% for i in range(1, 6) %}
+                            <span class="fb-star {{ 'filled' if i <= fb.rating else 'empty' }}">★</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% if fb.message %}
+                <div class="fb-message">
+                    <p>{{ fb.message }}</p>
+                </div>
+                {% else %}
+                <div class="fb-message fb-no-message">
+                    <p><em>No message provided</em></p>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-feedback">
+            <p>📭 No feedback submitted yet</p>
+        </div>
+        {% endif %}
+
+    </main>
+
+</div>
+
+</body>
+</html>
